@@ -84,15 +84,16 @@ export async function generateMenu(quiz: QuizAnswers): Promise<DayPlan[]> {
   const text = data.content[0].text
 
   let json
+  const extractJSON = (s: string) => {
+    const start = s.indexOf('{')
+    const end = s.lastIndexOf('}')
+    if (start === -1 || end === -1) throw new Error('JSON не найден')
+    return s.slice(start, end + 1)
+  }
   try {
-    json = JSON.parse(text)
+    json = JSON.parse(extractJSON(text))
   } catch {
-    const clean = text.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim()
-    try {
-      json = JSON.parse(clean)
-    } catch {
-      throw new Error(`Не удалось разобрать ответ: ${text.slice(0, 200)}`)
-    }
+    throw new Error(`Не удалось разобрать ответ: ${text.slice(0, 200)}`)
   }
 
   return json.days as DayPlan[]
