@@ -59,8 +59,9 @@ difficulty: "easy", "medium" или "hard".`
 
 export async function generateMenu(quiz: QuizAnswers): Promise<DayPlan[]> {
   if (USE_MOCK) {
-    await new Promise((r) => setTimeout(r, 1000)) // имитация задержки
-    return MOCK_MENU.slice(0, quiz.duration)
+    await new Promise((r) => setTimeout(r, 1000))
+    const shuffled = [...MOCK_MENU].sort(() => Math.random() - 0.5)
+    return shuffled.slice(0, quiz.duration).map((d, i) => ({ ...d, dayNumber: i + 1 }))
   }
 
   const apiKey = (import.meta.env.VITE_ANTHROPIC_API_KEY ?? '').trim()

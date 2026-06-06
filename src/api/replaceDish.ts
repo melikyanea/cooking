@@ -1,4 +1,13 @@
 import { Dish, DayPlan, MealType } from '../types'
+import { MOCK_MENU } from './mockMenu'
+
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
+
+const MOCK_REPLACEMENTS: Record<MealType, Dish[]> = {
+  breakfast: [MOCK_MENU[1].breakfast!, MOCK_MENU[2].breakfast!],
+  lunch: [MOCK_MENU[1].lunch!, MOCK_MENU[2].lunch!],
+  dinner: [MOCK_MENU[0].dinner!, MOCK_MENU[2].dinner!],
+}
 
 export async function replaceDish(
   currentDish: Dish,
@@ -7,6 +16,12 @@ export async function replaceDish(
   exclusions: string[],
   extraNotes: string
 ): Promise<Dish> {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 800))
+    const options = MOCK_REPLACEMENTS[mealType].filter((d) => d.id !== currentDish.id)
+    return options[Math.floor(Math.random() * options.length)] ?? MOCK_REPLACEMENTS[mealType][0]
+  }
+
   const apiKey = (import.meta.env.VITE_ANTHROPIC_API_KEY ?? '').trim()
   if (!apiKey) throw new Error('VITE_ANTHROPIC_API_KEY не задан')
 
@@ -27,12 +42,11 @@ export async function replaceDish(
 Исключить из рациона: ${exclusions.length > 0 ? exclusions.join(', ') : 'нет'}.
 Дополнительно: ${extraNotes || 'нет'}.
 Предложи другое блюдо — не повторяй то, что уже есть в рационе.
-
-Верни JSON одного блюда в формате:
+Верни только чистый JSON без markdown, одно блюдо:
 {
   "id": "unique_id",
   "name": "Название",
-  "description": "Описание 2-3 предложения",
+  "description": "Описание 1 предложение",
   "mealType": "${mealType}",
   "cookingTime": 20,
   "difficulty": "easy",
@@ -63,5 +77,13 @@ export async function replaceDish(
 
   const data = await response.json()
   const text = data.content[0].text
-  return JSON.parse(text) as Dish
+
+  const extractJSON = (s: string) => {
+    const start = s.indexOf('{')
+    const end = s.lastIndexOf('}')
+    if (start === -1 || end === -1) throw new Error('JSON не найден')
+    return s.slice(start, end + 1)
+  }
+
+  return JSON.parse(extractJSON(text)) as Dish
 }
