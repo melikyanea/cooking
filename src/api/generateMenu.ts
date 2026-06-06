@@ -55,8 +55,9 @@ difficulty: "easy", "medium" или "hard".`
 }
 
 export async function generateMenu(quiz: QuizAnswers): Promise<DayPlan[]> {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
+  const apiKey = (import.meta.env.VITE_ANTHROPIC_API_KEY ?? '').trim()
   if (!apiKey) throw new Error('VITE_ANTHROPIC_API_KEY не задан')
+  if (!/^sk-ant-/.test(apiKey)) throw new Error(`Ключ выглядит неверно: "${apiKey.slice(0, 10)}..."`)
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

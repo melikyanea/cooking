@@ -7,7 +7,7 @@ export async function replaceDish(
   exclusions: string[],
   extraNotes: string
 ): Promise<Dish> {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
+  const apiKey = (import.meta.env.VITE_ANTHROPIC_API_KEY ?? '').trim()
   if (!apiKey) throw new Error('VITE_ANTHROPIC_API_KEY не задан')
 
   const existingDishes = allDays
