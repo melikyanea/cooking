@@ -7,7 +7,7 @@ export function buildShoppingList(days: DayPlan[], portions: number): ShoppingIt
 
   for (const dish of allMeals) {
     if (!dish) continue
-    for (const ing of dish.ingredients) {
+    for (const ing of dish.ingredients ?? []) {
       const key = ing.name.toLowerCase().trim()
       const existing = totals.get(key)
       if (existing) {

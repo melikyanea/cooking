@@ -1,47 +1,71 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { Dish, DayPlan, MealType } from '../types'
 import { generateMenu } from '../api/generateMenu'
 import { replaceDish } from '../api/replaceDish'
+import { fetchRecipe } from '../api/fetchRecipe'
 import { buildShoppingList } from '../logic/shoppingList'
 
+const REPLACE_ALL_COOLDOWN = 30 // секунд
+
 function RecipeModal({ dish, onClose }: { dish: Dish; onClose: () => void }) {
+  const [fullDish, setFullDish] = useState<Dish>(dish)
+  const [loading, setLoading] = useState(!dish.ingredients || dish.ingredients.length === 0)
+
+  useEffect(() => {
+    if (!dish.ingredients || dish.ingredients.length === 0) {
+      fetchRecipe(dish)
+        .then(setFullDish)
+        .finally(() => setLoading(false))
+    }
+  }, [dish])
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-          <h2 className="font-bold text-lg text-gray-900">{dish.name}</h2>
+          <h2 className="font-bold text-lg text-gray-900">{fullDish.name}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
         </div>
         <div className="px-6 py-4 space-y-5">
-          <p className="text-gray-600">{dish.description}</p>
-          <div>
-            <h3 className="font-semibold text-gray-800 mb-2">Ингредиенты</h3>
-            <ul className="space-y-1">
-              {dish.ingredients.map((ing) => (
-                <li key={ing.id} className="flex justify-between text-sm">
-                  <span className="text-gray-700">{ing.name}</span>
-                  <span className="text-gray-400">
-                    {ing.unit === 'по вкусу' ? 'по вкусу' : `${ing.amount} ${ing.unit}`}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-800 mb-2">Приготовление</h3>
-            <ol className="space-y-2">
-              {dish.steps.map((step) => (
-                <li key={step.stepNumber} className="flex gap-3 text-sm">
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-100 text-orange-600 font-semibold text-xs flex items-center justify-center mt-0.5">
-                    {step.stepNumber}
-                  </span>
-                  <span className="text-gray-700">{step.instruction}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
+          <p className="text-gray-600">{fullDish.description}</p>
+
+          {loading ? (
+            <div className="text-center py-8 text-gray-400">
+              <div className="inline-block w-6 h-6 border-2 border-orange-300 border-t-orange-500 rounded-full animate-spin mb-2" />
+              <p className="text-sm">Загружаем рецепт…</p>
+            </div>
+          ) : (
+            <>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-2">Ингредиенты</h3>
+                <ul className="space-y-1">
+                  {fullDish.ingredients?.map((ing) => (
+                    <li key={ing.id} className="flex justify-between text-sm">
+                      <span className="text-gray-700">{ing.name}</span>
+                      <span className="text-gray-400">
+                        {ing.unit === 'по вкусу' || ing.unit === 'щепотка' ? ing.unit : `${ing.amount} ${ing.unit}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-2">Приготовление</h3>
+                <ol className="space-y-2">
+                  {fullDish.steps?.map((step) => (
+                    <li key={step.stepNumber} className="flex gap-3 text-sm">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-100 text-orange-600 font-semibold text-xs flex items-center justify-center mt-0.5">
+                        {step.stepNumber}
+                      </span>
+                      <span className="text-gray-700">{step.instruction}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -56,12 +80,24 @@ const MEAL_LABELS: Record<MealType, string> = {
 
 export default function MenuPage() {
   const navigate = useNavigate()
-  const { days, quiz, setDays, setShoppingItems, resetMenu } = useStore()
+  const { days, quiz, setDays, setShoppingItems, resetMenu, lastReplaceAllAt, setLastReplaceAll } = useStore()
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null)
   const [replacingKey, setReplacingKey] = useState<string | null>(null)
   const [isReplacingAll, setIsReplacingAll] = useState(false)
   const [confirmReplace, setConfirmReplace] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cooldownLeft, setCooldownLeft] = useState(0)
+
+  useEffect(() => {
+    const update = () => {
+      const elapsed = Math.floor((Date.now() - lastReplaceAllAt) / 1000)
+      const left = Math.max(0, REPLACE_ALL_COOLDOWN - elapsed)
+      setCooldownLeft(left)
+    }
+    update()
+    const t = setInterval(update, 1000)
+    return () => clearInterval(t)
+  }, [lastReplaceAllAt])
 
   if (days.length === 0) {
     navigate('/')
@@ -75,8 +111,8 @@ export default function MenuPage() {
     try {
       const newDays = await generateMenu(quiz)
       setDays(newDays)
-      const items = buildShoppingList(newDays, quiz.portions)
-      setShoppingItems(items)
+      setShoppingItems(buildShoppingList(newDays, quiz.portions))
+      setLastReplaceAll()
     } catch {
       setError('Не удалось обновить меню. Попробуйте ещё раз.')
     } finally {
@@ -94,19 +130,12 @@ export default function MenuPage() {
         d.dayNumber === day.dayNumber ? { ...d, [mealType]: newDish } : d
       )
       setDays(newDays)
-      const items = buildShoppingList(newDays, quiz.portions)
-      setShoppingItems(items)
+      setShoppingItems(buildShoppingList(newDays, quiz.portions))
     } catch {
       setError('Не удалось заменить блюдо. Попробуйте ещё раз.')
     } finally {
       setReplacingKey(null)
     }
-  }
-
-  const handleConfirm = () => {
-    const items = buildShoppingList(days, quiz.portions)
-    setShoppingItems(items)
-    navigate('/shopping')
   }
 
   return (
@@ -116,10 +145,7 @@ export default function MenuPage() {
           <button onClick={() => navigate('/quiz')} className="text-gray-400 hover:text-gray-600 text-sm">
             ← Изменить параметры
           </button>
-          <button
-            onClick={() => { resetMenu(); navigate('/') }}
-            className="text-gray-400 hover:text-gray-600 text-sm"
-          >
+          <button onClick={() => { resetMenu(); navigate('/') }} className="text-gray-400 hover:text-gray-600 text-sm">
             На главную
           </button>
         </div>
@@ -148,7 +174,7 @@ export default function MenuPage() {
                   const isReplacing = replacingKey === key
 
                   return (
-                    <div key={mealType} className={`px-5 py-4 ${isReplacing ? 'opacity-50' : ''}`}>
+                    <div key={mealType} className={`px-5 py-4 transition-opacity ${isReplacing ? 'opacity-40' : ''}`}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
@@ -184,14 +210,18 @@ export default function MenuPage() {
 
         <div className="space-y-3">
           <button
-            onClick={() => setConfirmReplace(true)}
-            disabled={isReplacingAll}
-            className="w-full py-3 rounded-2xl border-2 border-gray-200 text-gray-700 font-medium hover:border-gray-300 transition-colors disabled:opacity-40"
+            onClick={() => cooldownLeft === 0 && setConfirmReplace(true)}
+            disabled={isReplacingAll || cooldownLeft > 0}
+            className="w-full py-3 rounded-2xl border-2 border-gray-200 text-gray-700 font-medium hover:border-gray-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {isReplacingAll ? 'Обновляем меню…' : 'Заменить всю подборку'}
+            {isReplacingAll
+              ? 'Обновляем меню…'
+              : cooldownLeft > 0
+              ? `Подождите ${cooldownLeft} сек…`
+              : 'Заменить всю подборку'}
           </button>
           <button
-            onClick={handleConfirm}
+            onClick={() => { setShoppingItems(buildShoppingList(days, quiz.portions)); navigate('/shopping') }}
             className="w-full py-4 rounded-2xl bg-orange-500 text-white font-semibold hover:bg-orange-600 transition-colors shadow-sm"
           >
             Подтвердить рацион

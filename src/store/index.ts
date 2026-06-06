@@ -24,6 +24,8 @@ interface AppState {
   setShoppingItems: (items: ShoppingItem[]) => void
   toggleCheck: (id: string) => void
   resetChecks: () => void
+  lastReplaceAllAt: number
+  setLastReplaceAll: () => void
   resetMenu: () => void
 }
 
@@ -45,6 +47,7 @@ export const useStore = create<AppState>()(
       generateError: null,
       shoppingItems: [],
       checkedIds: [],
+      lastReplaceAllAt: 0,
 
       setQuiz: (partial) =>
         set((s) => ({ quiz: { ...s.quiz, ...partial } })),
@@ -64,6 +67,7 @@ export const useStore = create<AppState>()(
         })),
 
       resetChecks: () => set({ checkedIds: [] }),
+      setLastReplaceAll: () => set({ lastReplaceAllAt: Date.now() }),
       resetMenu: () => set({ days: [], generatedAt: '', shoppingItems: [], checkedIds: [] }),
     }),
     {

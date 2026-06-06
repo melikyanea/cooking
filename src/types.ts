@@ -23,8 +23,8 @@ export interface Dish {
   mealType: MealType
   cookingTime: number
   difficulty: Difficulty
-  ingredients: Ingredient[]
-  steps: RecipeStep[]
+  ingredients?: Ingredient[]
+  steps?: RecipeStep[]
 }
 
 export interface DayPlan {

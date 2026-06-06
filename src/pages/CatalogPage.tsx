@@ -42,7 +42,7 @@ function RecipeModal({ dish, onClose }: { dish: Dish; onClose: () => void }) {
           <div>
             <h3 className="font-semibold text-gray-800 mb-2">Ингредиенты</h3>
             <ul className="space-y-1">
-              {dish.ingredients.map((ing) => (
+              {(dish.ingredients ?? []).map((ing) => (
                 <li key={ing.id} className="flex justify-between text-sm">
                   <span className="text-gray-700">{ing.name}</span>
                   <span className="text-gray-400">
@@ -56,7 +56,7 @@ function RecipeModal({ dish, onClose }: { dish: Dish; onClose: () => void }) {
           <div>
             <h3 className="font-semibold text-gray-800 mb-2">Приготовление</h3>
             <ol className="space-y-2">
-              {dish.steps.map((step) => (
+              {(dish.steps ?? []).map((step) => (
                 <li key={step.stepNumber} className="flex gap-3 text-sm">
                   <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-100 text-orange-600 font-semibold text-xs flex items-center justify-center mt-0.5">
                     {step.stepNumber}
