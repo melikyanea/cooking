@@ -1,11 +1,11 @@
 import { DayPlan, QuizAnswers } from '../types'
 
 const SYSTEM_PROMPT = `Ты — диетолог и шеф-повар. Составляй сбалансированные рационы питания.
-Отвечай строго в формате JSON без лишнего текста, без markdown, без комментариев.
+Отвечай строго в формате JSON без лишнего текста, без markdown, без комментариев — только чистый JSON.
 Соблюдай баланс белков, жиров и углеводов по дням.
 Не повторяй одно и то же блюдо в рамках одного рациона.
-Каждое блюдо должно содержать рецепт с шагами и точные ингредиенты с количествами.
-Все названия, описания и инструкции пиши на русском языке.`
+Все названия, описания и инструкции пиши на русском языке.
+Будь лаконичен: максимум 5 ингредиентов на блюдо, максимум 4 шага рецепта, описание — 1 предложение.`
 
 function buildUserPrompt(quiz: QuizAnswers): string {
   const mealLabels: Record<string, string> = {
@@ -68,8 +68,8 @@ export async function generateMenu(quiz: QuizAnswers): Promise<DayPlan[]> {
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 8000,
+      model: 'claude-sonnet-4-6',
+      max_tokens: 16000,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: buildUserPrompt(quiz) }],
     }),
