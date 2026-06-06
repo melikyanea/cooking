@@ -75,12 +75,22 @@ export async function generateMenu(quiz: QuizAnswers): Promise<DayPlan[]> {
   })
 
   if (!response.ok) {
-    throw new Error(`API error: ${response.status}`)
+    const body = await response.text()
+    throw new Error(`API error ${response.status}: ${body}`)
   }
 
   const data = await response.json()
   const text = data.content[0].text
 
-  const json = JSON.parse(text)
+  let json
+  try {
+    json = JSON.parse(text)
+  } catch {
+    // модель могла обернуть JSON в markdown ```json ... ```
+    const match = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (match) json = JSON.parse(match[1])
+    else throw new Error(`Не удалось разобрать ответ: ${text.slice(0, 200)}`)
+  }
+
   return json.days as DayPlan[]
 }

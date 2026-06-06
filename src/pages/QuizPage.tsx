@@ -61,7 +61,8 @@ export default function QuizPage() {
       setShoppingItems(items)
       navigate('/menu')
     } catch (e) {
-      setGenerateError('Не удалось составить меню. Попробуйте ещё раз.')
+      const msg = e instanceof Error ? e.message : String(e)
+      setGenerateError(`Ошибка: ${msg}`)
     } finally {
       setGenerating(false)
     }
