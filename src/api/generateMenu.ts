@@ -1,4 +1,7 @@
 import { DayPlan, QuizAnswers } from '../types'
+import { MOCK_MENU } from './mockMenu'
+
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 const SYSTEM_PROMPT = `Ты — диетолог и шеф-повар. Составляй сбалансированные рационы питания.
 Отвечай строго в формате JSON без лишнего текста, без markdown, без комментариев — только чистый JSON.
@@ -55,6 +58,11 @@ difficulty: "easy", "medium" или "hard".`
 }
 
 export async function generateMenu(quiz: QuizAnswers): Promise<DayPlan[]> {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 1000)) // имитация задержки
+    return MOCK_MENU.slice(0, quiz.duration)
+  }
+
   const apiKey = (import.meta.env.VITE_ANTHROPIC_API_KEY ?? '').trim()
   if (!apiKey) throw new Error('VITE_ANTHROPIC_API_KEY не задан')
   if (!/^sk-ant-/.test(apiKey)) throw new Error(`Ключ выглядит неверно: "${apiKey.slice(0, 10)}..."`)
