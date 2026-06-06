@@ -87,10 +87,12 @@ export async function generateMenu(quiz: QuizAnswers): Promise<DayPlan[]> {
   try {
     json = JSON.parse(text)
   } catch {
-    // модель могла обернуть JSON в markdown ```json ... ```
-    const match = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-    if (match) json = JSON.parse(match[1])
-    else throw new Error(`Не удалось разобрать ответ: ${text.slice(0, 200)}`)
+    const clean = text.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim()
+    try {
+      json = JSON.parse(clean)
+    } catch {
+      throw new Error(`Не удалось разобрать ответ: ${text.slice(0, 200)}`)
+    }
   }
 
   return json.days as DayPlan[]
